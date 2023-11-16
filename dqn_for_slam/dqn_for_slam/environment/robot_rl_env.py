@@ -58,7 +58,7 @@ MIN_MAP_COMPLETENESS = 0.
 MAP_SIZE = (MAX_PX - MIN_PX) * (MAX_PY - MIN_PY)
 
 STEERING = rospy.get_param('rlslam/steering')
-THROTTLE = rospy.get_param('rlslam/throttle') 
+THROTTLE = rospy.get_param('rlslam/throttle')
 
 TIMEOUT = rospy.get_param('rlslam/timeout')
 SLEEP_RESET_TIME = rospy.get_param('rlslam/sleep_reset_time')
@@ -94,8 +94,8 @@ class RobotEnv(gym.Env):
         self.action_space = spaces.Discrete(4)
 
         # define observation space
-        scan_high = np.array([LIDAR_SCAN_MAX_DISTANCE] * TRAINING_IMAGE_SIZE)
-        scan_low = np.array([LIDAR_SCAN_MIN_DISTANCE] * TRAINING_IMAGE_SIZE)
+        scan_high = np.array([LIDAR_SCAN_MAX_DISTANCE] * TRAINING_IMAGE_SIZE, dtype=np.float32)
+        scan_low = np.array([LIDAR_SCAN_MIN_DISTANCE] * TRAINING_IMAGE_SIZE, dtype=np.float32)
         num_high = np.array([
             MAX_PX,
             MAX_PY,
@@ -103,15 +103,15 @@ class RobotEnv(gym.Env):
             MAX_ACTION_NUM,
             MAX_STEPS,
             MAX_MAP_COMPLETENESS
-        ])
+        ], dtype=np.float32)
         num_low = np.array([
             MIN_PX,
             MIN_PY,
             MIN_QZ,
-            MIN_ACTION_NUM, 
+            MIN_ACTION_NUM,
             MIN_STEPS,
             MIN_MAP_COMPLETENESS
-        ])
+        ], dtype=np.float32)
         high = np.concatenate([scan_high, num_high])
         low = np.concatenate([scan_low, num_low])
         self.observation_space = spaces.Box(low, high, dtype=np.float32)
@@ -158,7 +158,7 @@ class RobotEnv(gym.Env):
             rospy.loginfo('reset map')
         else:
             rospy.logerr('could not reset map')
-       
+
         #time.sleep(SLEEP_RESET_TIME)
 
         self._update_map_size_ratio() # sometimes map expands
@@ -213,8 +213,8 @@ class RobotEnv(gym.Env):
         if self.gazebo_model_state_service(model_state):
             rospy.loginfo('set robot init state')
         else:
-            rospy.logerr("/gazebo/set_model_state service call failed")       
- 
+            rospy.logerr("/gazebo/set_model_state service call failed")
+
     def _update_map_size_ratio(self) -> None:
         data = None
         while data is None and not rospy.is_shutdown():
@@ -231,7 +231,7 @@ class RobotEnv(gym.Env):
     def step(self, action: int) -> Tuple[np.ndarray, float, bool, dict]:
         """
         run action and return results
-        """        
+        """
         # rospy.loginfo('start step' + str(self.steps_in_episode + 1))
 
         #rospy.wait_for_service('/gazebo/unpause_physics')
@@ -239,7 +239,7 @@ class RobotEnv(gym.Env):
         #    self.unpause()
         #except (rospy.ServiceException) as e:
         #    rospy.loginfo("/gazebo/unpause_physics service call failed")
-        
+
         self.last_action = self.now_action
         self.now_action = action
         if action == 0:  # turn left
@@ -263,14 +263,14 @@ class RobotEnv(gym.Env):
 
         self.steps_in_episode += 1
         self._send_action(steering, throttle)
-        
+
         # time.sleep(SLEEP_BETWEEN_ACTION_AND_REWARD_CALCULATION)
         self._wait_until_twist_achieved(steering, throttle)
 
         sensor_state = self._update_scan()
         self._update_map_completeness()
         numeric_state = self._update_odom()
-        
+
         #if self.steps_in_episode >= MAX_STEPS:
         #  rospy.wait_for_service('/gazebo/pause_physics')
         #  try:
@@ -284,7 +284,7 @@ class RobotEnv(gym.Env):
 
         info = {}
         return next_state, self.reward, self.done, info
-   
+
     def _wait_until_twist_achieved(self, angular_speed, linear_speed):
         """
         We wait for the cmd_vel twist given to be reached by the robot reading
@@ -295,17 +295,17 @@ class RobotEnv(gym.Env):
         :return:
         """
         rospy.loginfo("START wait_until_twist_achieved...")
-        
+
         epsilon = 0.05
         update_rate = 10
         angular_speed_noise = 0.005
         rate = rospy.Rate(update_rate)
-        
+
         angular_speed_is = self._check_angular_speed_dir(angular_speed, angular_speed_noise)
-        
+
         linear_speed_plus = linear_speed + epsilon
         linear_speed_minus = linear_speed - epsilon
-        
+
         roop_count = 0
         while not rospy.is_shutdown():
             current_odometry = None
@@ -315,28 +315,28 @@ class RobotEnv(gym.Env):
 
                 except:
                     rospy.logerr("Current /odom not ready yet, retrying for getting odom")
-  
+
             odom_linear_vel = current_odometry.twist.twist.linear.x
             odom_angular_vel = current_odometry.twist.twist.angular.z
-            
+
             linear_vel_are_close = (odom_linear_vel <= linear_speed_plus) and (odom_linear_vel > linear_speed_minus)
             odom_angular_speed_is = self._check_angular_speed_dir(odom_angular_vel, angular_speed_noise)
-                
+
             # We check if its turning in the same diretion or has stopped
             angular_vel_are_close = (angular_speed_is == odom_angular_speed_is)
-            
+
             if linear_vel_are_close and angular_vel_are_close:
                 rospy.loginfo("Reached Velocity!")
                 break
-            
+
             roop_count += 1
             if roop_count >= 3:
                 rospy.logwarn('its regarded as crashed')
                 break
-            
+
             rospy.logwarn("Not there yet, keep waiting...")
             rate.sleep()
-    
+
     def _check_angular_speed_dir(self, angular_speed, angular_speed_noise):
         """
         It States if the speed is zero, posititive or negative
@@ -351,7 +351,7 @@ class RobotEnv(gym.Env):
         else:
             angular_speed_is = 0
             rospy.logerr("Angular Speed has wrong value=="+str(angular_speed))
-   
+
     def _update_scan(self) -> None:
         """
         """
@@ -407,7 +407,7 @@ class RobotEnv(gym.Env):
     def _infer_reward(self) -> None:
         """
         """
-        
+
         if self.map_completeness_pct > MAP_COMPLETENESS_THRESHOLD:
             self.reward = REWARD_MAP_COMPLETED
             state = 'comp'
@@ -418,12 +418,12 @@ class RobotEnv(gym.Env):
         else:
             self.reward = self.map_completeness_pct - self.last_map_completeness_pct
             state = ''
-        
+
         self.reward_in_episode += self.reward
         rospy.loginfo('reward:' + str(self.reward) + ' ' + state)
 
     def _update_map_completeness(self) -> None:
-        
+
         rospy.loginfo('waiting map')
         data = None
         while data is None and not rospy.is_shutdown():
@@ -442,15 +442,15 @@ class RobotEnv(gym.Env):
             if n == 0:
                 num_unoccupied += 1
             elif n == 100:
-                num_occupied += 1 
-        
+                num_occupied += 1
+
         self.last_map_completeness_pct = self.map_completeness_pct
         self.map_completeness_pct = ((num_occupied + num_unoccupied) * 100 / sum_grid) / self.map_size_ratio
         if self.steps_in_episode == 1:
             self.last_map_completeness_pct = self.map_completeness_pct
 
-        rospy.loginfo('map completenes:' + str(self.map_completeness_pct)) 
-    
+        rospy.loginfo('map completenes:' + str(self.map_completeness_pct))
+
     def _send_action(self, steering: float, throttle: float) -> None:
         speed = Twist()
         speed.angular.z = steering

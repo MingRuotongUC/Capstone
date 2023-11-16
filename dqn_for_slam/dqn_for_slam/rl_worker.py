@@ -10,6 +10,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras import regularizers
 
+
 from rl.agents.dqn import DQNAgent
 from rl.memory import SequentialMemory
 
@@ -36,7 +37,7 @@ def kill_all_nodes() -> None:
     for i in range(len(nodes)):
         nodes[i] = nodes[i].replace('\n', '')
     for node in nodes:
-        os.system('rosnode kill ' + node)    
+        os.system('rosnode kill ' + node)
 
 
 if __name__ == '__main__':
@@ -61,7 +62,7 @@ if __name__ == '__main__':
         gamma=0.99,
         batch_size=64)
 
-    agent.compile(optimizer=Adam(lr=0.001), metrics=['mae'])
+    agent.compile(optimizer=Adam(learning_rate=0.001), metrics=['mae'])
 
     # early_stopping = EarlyStopping(monitor='episode_reward', patience=0, verbose=1)
     history = agent.fit(env,
@@ -70,8 +71,8 @@ if __name__ == '__main__':
                         nb_max_episode_steps=250,
                         log_interval=250,
                         verbose=1)
-    
-    kill_all_nodes()    
+
+    kill_all_nodes()
 
     dt_now = datetime.datetime.now()
     agent.save_weights(
